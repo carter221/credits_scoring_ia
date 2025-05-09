@@ -58,7 +58,7 @@ Placez les fichiers CSV dans le dossier `data/`
 python api/app.py
 ```
 
-L'API sera accessible à l'adresse http://localhost:5000
+L'API sera accessible à l'adresse http://localhost:5007
 
 ### 2. Démarrer le Dashboard (dans une nouvelle fenêtre de terminal)
 
