@@ -1,0 +1,54 @@
+# Ignorer les fichiers de données volumineux
+data/*.csv
+data/*.zip
+data/*.pkl
+data/*.h5
+
+# Répertoires Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+venvd/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Fichiers spécifiques à l'IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environnements virtuels
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Fichiers de cache Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Fichiers de log
+logs/
+*.log
+
+# Fichiers de configuration locaux
+config.local.py
