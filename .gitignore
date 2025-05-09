@@ -52,3 +52,5 @@ logs/
 
 # Fichiers de configuration locaux
 config.local.py
+
+node_modules/
