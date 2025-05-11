@@ -52,3 +52,6 @@ logs/
 
 # Fichiers de configuration locaux
 config.local.py
+
+#Model d'IA 
+models/*.h5
