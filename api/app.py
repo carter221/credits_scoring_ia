@@ -18,8 +18,9 @@ warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 app = Flask(__name__)
 CORS(app)
 
-# Chemins des modèles
+# Chemins des modèles et du scaler
 MODEL_PATH = '../models/random_forest_smote_model.h5'
+SCALER_PATH = '../models/standard_scaler.h5'
 DB_PATH = '../db/credit_scoring_simplified.sqlite3'
 
 # Liste ordonnée des features attendues par le modèle
@@ -40,13 +41,18 @@ def load_pickle_from_h5(h5_path, dataset):
         pickled_bytes = h5file[dataset][()]
     return pickle.loads(pickled_bytes)
 
-# Charger le modèle sauvegardé
+# Charger le modèle et le scaler
 try:
     rf_model = joblib.load(MODEL_PATH)
     print(f"Modèle chargé depuis {MODEL_PATH}")
+    
+    # Charger le StandardScaler
+    standard_scaler = joblib.load(SCALER_PATH)
+    print(f"Scaler chargé depuis {SCALER_PATH}")
 except Exception as e:
-    print(f"Impossible de charger le modèle depuis {MODEL_PATH}: {str(e)}")
+    print(f"Impossible de charger le modèle ou le scaler: {str(e)}")
     rf_model = None
+    standard_scaler = None
 
 def get_client_features_from_db(sk_id_curr):
     """
@@ -110,25 +116,52 @@ def predict(sk_id_curr):
     if client_features is None:
         return jsonify({'error': f'Client {sk_id_curr} introuvable'}), 404
 
-    # 2. Préparer les features pour le modèle (attention à l'ordre !)
-    features = np.array([client_features[feat] for feat in MODEL_FEATURES]).reshape(1, -1)
-    
-    # 3. Prédiction directe sans standardisation
-    proba = rf_model.predict_proba(features)[0, 1]
-    prediction = int(rf_model.predict(features)[0])
-    
-    # 4. Retourner la prédiction et la proba
-    return jsonify({
-        'sk_id_curr': sk_id_curr,
-        'prediction': prediction,
-        'proba': float(proba),
-        'client_info': {
-            'gender': client_features.get('CODE_GENDER', 'Unknown'),
-            'credit_amount': client_features.get('AMT_CREDIT', 0),
-            'goods_price': client_features.get('AMT_GOODS_PRICE', 0),
-            'employment_years': abs(int(client_features.get('DAYS_EMPLOYED', 0))) // 365
-        }
-    })
+    # 2. Vérifier que toutes les features nécessaires sont présentes
+    missing_features = [feat for feat in MODEL_FEATURES if feat not in client_features or client_features[feat] is None]
+    if missing_features:
+        # Remplir les valeurs manquantes avec la médiane (0 pour simplicité ici)
+        for feat in missing_features:
+            client_features[feat] = 0
+        print(f"Warning: Features manquantes remplies avec 0: {missing_features}")
+
+    # 3. Préparer les features pour le modèle (attention à l'ordre !)
+    try:
+        # Créer un array numpy avec les features dans le bon ordre
+        features = np.array([client_features[feat] for feat in MODEL_FEATURES]).reshape(1, -1)
+        
+        # Standardiser les données si le scaler est disponible
+        if standard_scaler is not None:
+            features = standard_scaler.transform(features)
+            print("Données standardisées avec le scaler")
+        
+        # 4. Prédiction avec le modèle
+        proba = rf_model.predict_proba(features)[0, 1]
+        prediction = int(rf_model.predict(features)[0])
+        
+        # 5. Retourner la prédiction et la proba
+        return jsonify({
+            'sk_id_curr': sk_id_curr,
+            'prediction': prediction,
+            'proba': float(proba),
+            'client_info': {
+                'gender': client_features.get('CODE_GENDER', 'Unknown'),
+                'credit_amount': float(client_features.get('AMT_CREDIT', 0)),
+                'goods_price': float(client_features.get('AMT_GOODS_PRICE', 0)),
+                'employment_years': abs(int(client_features.get('DAYS_EMPLOYED', 0))) // 365,
+                'family_members': float(client_features.get('CNT_FAM_MEMBERS', 0)),
+                'children_count': int(client_features.get('CNT_CHILDREN', 0)),
+                'region_rating': int(client_features.get('REGION_RATING_CLIENT', 0))
+            },
+            'model_features': {feat: float(client_features.get(feat, 0)) for feat in MODEL_FEATURES}
+        })
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Erreur lors de la prédiction: {str(e)}\n{error_details}")
+        return jsonify({
+            'error': f'Erreur lors de la prédiction: {str(e)}',
+            'details': str(error_details)
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5007, debug=True)
