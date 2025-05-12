@@ -60,17 +60,20 @@ python api/app.py
 
 L'API sera accessible à l'adresse http://localhost:5007
 
-### 2. Démarrer le Dashboard (dans une nouvelle fenêtre de terminal)
+
+### 2. Démarrer le Frontend Vue.js (dans une nouvelle fenêtre de terminal)
 
 ```bash
-python dashboard/app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-Le dashboard sera accessible à l'adresse http://localhost:8050
+Le frontend sera accessible à l'adresse http://localhost:5173
 
 ## Utilisation
 
-1. Ouvrez votre navigateur et accédez à http://localhost:8050
+1. Ouvrez votre navigateur et accédez à http://localhost:5173
 2. Entrez l'ID du client ou chargez un nouvel utilisateur
 3. Consultez les prédictions et les explications sur la solvabilité
 

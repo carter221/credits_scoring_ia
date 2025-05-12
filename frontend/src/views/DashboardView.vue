@@ -27,16 +27,17 @@
               <span><strong>Montant du bien:</strong></span>
               <p>{{ client.goods_price }} €</p>
             </div>
-            <div class="info-card">
-              <i class="fas fa-credit-card"></i>
-              <p><strong>Montant du crédit:</strong> {{ client.credit_amount }} €</p>
+             <div class="info-card">
+              <p><strong>Nombre d'enfants: <br> </strong> {{ client.children_count }}</p>
             </div>
+            
             <div class="info-card">
               <i class="fas fa-briefcase"></i>
               <p><strong>Années d'emploi:</strong> {{ client.employment_years }} ans</p>
             </div>
-            <div class="info-card">
-              <p><strong>Nombre d'enfants:</strong> {{ client.children_count }}</p>
+           <div class="info-card">
+              <i class="fas fa-credit-card"></i>
+              <p><strong>Montant du crédit:</strong> {{ client.credit_amount }} €</p>
             </div>
           </div>
         </section>
