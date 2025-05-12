@@ -1,21 +1,15 @@
 <template>
-  <div>
-    <h1>Bienvenue sur le Dashboard Crédit Scoring</h1>
-    <Dashboard />
+  <div id="app">
+    <router-view /> <!-- Assurez-vous que router-view est présent -->
   </div>
 </template>
 
 <script>
-import Dashboard from './components/Dashboard.vue';
-
 export default {
-  name: 'App',
-  components: {
-    Dashboard,
-  },
+  name: 'App'
 };
 </script>
 
 <style>
-/* Ajoutez ici vos styles globaux */
+/* Ajoutez vos styles globaux ici si nécessaire */
 </style>

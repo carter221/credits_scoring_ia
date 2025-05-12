@@ -1,26 +1,36 @@
 <template>
-  <div>
-    <h2>Dashboard Crédit Scoring</h2>
-    <!-- Champ d'entrée modifié pour accepter des chaînes -->
-    <input v-model="clientId" type="text" placeholder="Enter Client ID" />
-    <button @click="fetchClientData">Submit</button>
+  <div class="dashboard">
+    <h2><strong>Dashboard Crédit Scoring</strong></h2> <!-- Titre en gras -->
+    <!-- Champ d'entrée pour l'ID client -->
+    <input v-model="clientId" type="text" placeholder="Entrez l'ID du client" />
+    <button @click="fetchClientData">Soumettre</button>
 
-    <div v-if="clientInfo">
-      <h3>Informations Client</h3>
-      <p>{{ clientInfo }}</p>
+    <!-- Affichage des informations du client -->
+    <div v-if="clientData">
+      <h3><strong>Informations du client</strong></h3> <!-- Titre en gras -->
+      <p><strong>ID Client :</strong> {{ clientData.sk_id_curr }}</p>
+      <p><strong>Genre :</strong> {{ clientData.client_info.gender }}</p>
+      <p><strong>Montant du crédit :</strong> {{ clientData.client_info.credit_amount }} €</p>
+      <p><strong>Prix des biens :</strong> {{ clientData.client_info.goods_price }} €</p>
+      <p><strong>Années d'emploi :</strong> {{ clientData.client_info.employment_years }}</p>
+      <p><strong>Nombre de membres de la famille :</strong> {{ clientData.client_info.family_members }}</p>
+      <p><strong>Nombre d'enfants :</strong> {{ clientData.client_info.children_count }}</p>
+      <p><strong>Évaluation de la région :</strong> {{ clientData.client_info.region_rating }}</p>
     </div>
 
-    <div v-if="clientScore">
-      <h3>Score Client</h3>
-      <p>Score: {{ clientScore.score }}</p>
-      <p>Interpretation: {{ clientScore.interpretation }}</p>
+    <!-- Affichage du score et de la probabilité -->
+    <div v-if="clientData">
+      <h3><strong>Score et Probabilité</strong></h3> <!-- Titre en gras -->
+      <p><strong>Prédiction :</strong> {{ clientData.prediction }}</p>
+      <p><strong>Probabilité :</strong> {{ (clientData.proba * 100).toFixed(2) }}%</p>
     </div>
 
-    <div v-if="comparisonData">
-      <h3>Comparaison avec d'autres clients</h3>
+    <!-- Affichage des features utilisées par le modèle -->
+    <div v-if="clientData">
+      <h3><strong>Features utilisées par le modèle</strong></h3> <!-- Titre en gras -->
       <ul>
-        <li v-for="client in comparisonData.similar_clients" :key="client.client_id">
-          Client ID: {{ client.client_id }}, Income: {{ client.income }}
+        <li v-for="(value, key) in clientData.model_features" :key="key">
+          <strong>{{ key }} :</strong> {{ value }}
         </li>
       </ul>
     </div>
@@ -33,37 +43,72 @@ import axios from 'axios';
 export default {
   data() {
     return {
-      clientId: '', // Initialisé comme une chaîne vide
-      clientInfo: null,
-      clientScore: null,
-      comparisonData: null,
+      clientId: '', // ID du client saisi par l'utilisateur
+      clientData: null, // Données du client récupérées depuis l'API
     };
   },
   methods: {
     async fetchClientData() {
-      // Validation de l'ID pour s'assurer qu'il est un entier positif
-      const id = parseInt(this.clientId, 10);
-      if (isNaN(id) || id <= 0) {
-        alert("Please enter a valid Client ID (positive integer)");
+      if (!this.clientId) {
+        alert("Veuillez entrer un ID client valide.");
         return;
       }
 
       try {
-        const clientDataResponse = await axios.get(`http://127.0.0.1:5007/client_data?client_id=${id}`);
-        const clientScoreResponse = await axios.get(`http://127.0.0.1:5007/client_score?client_id=${id}`);
-        const comparisonResponse = await axios.get(`http://127.0.0.1:5007/compare_clients?client_id=${id}`);
-
-        this.clientInfo = `Client ID: ${clientDataResponse.data.client_id}, Age: ${clientDataResponse.data.age}, Income: ${clientDataResponse.data.income}, Loan Amount: ${clientDataResponse.data.loan_amount}, Status: ${clientDataResponse.data.loan_status}`;
-        this.clientScore = clientScoreResponse.data;
-        this.comparisonData = comparisonResponse.data;
+        // Suppression du préfixe `api` dans l'URL
+        const response = await axios.get(`http://127.0.0.1:5007/predict/${this.clientId}`);
+        this.clientData = response.data;
       } catch (error) {
-        console.error("Error fetching client data:", error);
+        console.error("Erreur lors de la récupération des données :", error);
+        alert("Impossible de récupérer les données pour cet ID client.");
       }
     },
   },
 };
 </script>
 
-<style>
-/* Ajoutez ici vos styles pour le dashboard */
+<style scoped>
+.dashboard {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+input {
+  width: calc(100% - 20px);
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #ff0000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #cc0000;
+}
+
+h3 {
+  margin-top: 20px;
+  color: #333;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 5px;
+}
 </style>
