@@ -1,106 +1,114 @@
 <template>
-  <div class="chart-container">
-    <canvas ref="chartCanvas"></canvas>
-    <div v-if="chartData.datasets[0]?.data[0]" class="score-display" :style="{ color: scoreColor }">
-      <p style="font-size: 3rem; font-weight: 900;">{{ chartData.datasets[0].data[0] }}%</p> <!-- Police agrandie et gras forcé -->
+  <div class="score-chart">
+    <div v-if="chartData" class="chart-container">
+      <canvas ref="chartCanvas"></canvas>
+      <!-- Affichage du score au centre de la jauge avec une couleur dynamique -->
+      <div class="score-display" :style="{ color: scoreColor }">
+        <p><strong>{{ Math.round(proba * 100) }}%</strong></p>
+      </div>
     </div>
+    <p v-else>Aucune donnée disponible pour le score.</p>
   </div>
 </template>
 
 <script>
-import { defineComponent, onMounted, ref, watch, computed } from 'vue';
-import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart, registerables } from 'chart.js';
 
-Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
+// Enregistrez tous les modules nécessaires de Chart.js
+Chart.register(...registerables);
 
-export default defineComponent({
+export default {
   props: {
+    proba: {
+      type: Number,
+      required: true,
+    },
     chartData: {
       type: Object,
       required: true,
-      default: () => ({
-        labels: [],
-        datasets: []
-      })
     },
     options: {
       type: Object,
-      default: () => ({
-        cutout: '70%', // Une forme bien ronde avec un gros trou au centre
-        responsive: true,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            enabled: false
-          }
-        }
-      })
+      required: true,
     },
     classifications: {
       type: Array,
       required: true,
-      default: () => [] // Default to an empty array to avoid runtime errors
-    }
+    },
   },
-  setup(props) {
-    const chartCanvas = ref(null);
-    let chartInstance = null;
-
-    // Calculer dynamiquement la couleur du score en fonction des classes
-    const scoreColor = computed(() => {
-      const score = props.chartData.datasets[0]?.data[0] || 0;
-      if (!props.classifications || props.classifications.length === 0) {
-        console.warn("Classifications are missing or empty.");
-        return '#000000'; // Noir par défaut
-      }
-      const classification = props.classifications.find(
-        (c) => score >= c.min && score <= c.max
-      );
-      if (!classification) {
-        console.warn(`No classification found for score: ${score}`);
-        return '#000000'; // Noir par défaut
-      }
-      return classification.color;
-    });
-
-    onMounted(() => {
-      if (chartCanvas.value) {
-        chartInstance = new Chart(chartCanvas.value, {
-          type: 'doughnut',
-          data: props.chartData,
-          options: props.options
-        });
-      }
-    });
-
-    watch(() => props.chartData, (newData) => {
-      if (chartInstance) {
-        chartInstance.data = newData;
-        chartInstance.update();
-      }
-    });
-
+  data() {
     return {
-      chartCanvas,
-      scoreColor
+      chart: null,
     };
-  }
-});
+  },
+  computed: {
+    scoreColor() {
+      // Trouver la couleur correspondant à la probabilité
+      const classification = this.classifications.find(
+        (c) => this.proba * 100 >= c.min && this.proba * 100 <= c.max
+      );
+      return classification ? classification.color : '#333'; // Couleur par défaut
+    },
+    dynamicChartData() {
+      // Mise à jour dynamique des couleurs de remplissage de la jauge
+      return {
+        ...this.chartData,
+        datasets: [
+          {
+            ...this.chartData.datasets[0],
+            backgroundColor: [this.scoreColor, '#f0f0f0'], // Gris plus pâle pour le restant
+          },
+        ],
+      };
+    },
+  },
+  watch: {
+    proba: "renderChart",
+    chartData: "renderChart",
+  },
+  mounted() {
+    this.renderChart();
+  },
+  methods: {
+    renderChart() {
+      if (this.chart) {
+        this.chart.destroy();
+      }
+
+      const ctx = this.$refs.chartCanvas.getContext("2d");
+      this.chart = new Chart(ctx, {
+        type: "doughnut",
+        data: this.dynamicChartData, // Utilisation des données dynamiques
+        options: {
+          ...this.options,
+          plugins: {
+            tooltip: { enabled: false },
+            legend: { display: false },
+          },
+        },
+      });
+    },
+  },
+};
 </script>
 
 <style scoped>
+.score-chart {
+  max-width: 500px; /* Augmente la largeur maximale de la jauge */
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+
 .chart-container {
   position: relative;
-  width: 200px;
-  height: 200px;
-  margin: auto;
+  width: 100%;
+  height: auto;
 }
 
 canvas {
-  width: 100% !important;
-  height: 100% !important;
+  max-width: 100%;
+  height: auto;
 }
 
 .score-display {
@@ -108,14 +116,8 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 2rem; /* Taille par défaut */
-  font-weight: 900; /* Gras forcé */
-  pointer-events: none;
-  text-align: center;
-}
-
-/* Arrondir les angles des barres */
-.bar {
-  border-radius: 10px; /* Rayon pour arrondir les angles */
+  font-size: 4rem; /* Taille de la police encore plus grande */
+  font-weight: 900; /* Mise en gras maximale */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); /* Ajout d'une ombre pour accentuer */
 }
 </style>

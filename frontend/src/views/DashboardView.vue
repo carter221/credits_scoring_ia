@@ -9,27 +9,34 @@
       <!-- Contenu principal -->
       <main class="main-content">
         <section v-if="client" class="client-info-section">
-          <h2>Informations du client</h2>
+          <h2><strong>Informations du client</strong></h2>
           <div class="client-info-cards">
             <div class="info-card">
               <i class="fas fa-id-card"></i>
-              <p>{{ client.SK_ID_CURR }}</p>
+              <p><strong>ID:</strong> {{ client.sk_id_curr }}</p>
             </div>
             <div class="info-card">
               <i class="fas fa-user"></i>
-              <p>{{ client.CODE_GENDER }}</p>
+              <p><strong>Genre:</strong> {{ client.gender }}</p>
             </div>
             <div class="info-card">
               <i class="fas fa-heart"></i>
-              <p>{{ client.NAME_FAMILY_STATUS }}</p>
+              <p><strong>Nombre de membres de la famille:</strong> {{ client.family_members }}</p>
             </div>
             <div class="info-card">
-              <span>Revenu</span>
-              <p>{{ client.AMT_INCOME_TOTAL }} €</p>
+              <span><strong>Montant du bien:</strong></span>
+              <p>{{ client.goods_price }} €</p>
             </div>
             <div class="info-card">
               <i class="fas fa-credit-card"></i>
-              <p>{{ client.AMT_CREDIT }} €</p>
+              <p><strong>Montant du crédit:</strong> {{ client.credit_amount }} €</p>
+            </div>
+            <div class="info-card">
+              <i class="fas fa-briefcase"></i>
+              <p><strong>Années d'emploi:</strong> {{ client.employment_years }} ans</p>
+            </div>
+            <div class="info-card">
+              <p><strong>Nombre d'enfants:</strong> {{ client.children_count }}</p>
             </div>
           </div>
         </section>
@@ -38,9 +45,11 @@
         <section v-if="score !== null && chartData !== null" class="score-section">
           <div class="visual-container">
             <div class="chart-container">
-              <ScoreChart :chartData="chartData" :options="chartOptions" :classifications="classifications" />
+              <h3 class="visual-title"><strong>Score du Crédit</strong></h3>
+              <ScoreChart :chartData="chartData" :options="chartOptions" :classifications="classifications" :proba="score" />
             </div>
             <div class="classification-container">
+              <h3 class="visual-title"><strong>Votre Situation</strong></h3>
               <div class="classification-bar" v-for="classification in classifications" :key="classification.label">
                 <span class="range">{{ classification.range }}</span>
                 <div
@@ -68,7 +77,7 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import ScoreChart from '../components/ScoreChart.vue'; // Importation du composant ScoreChart
+import ScoreChart from '../components/ScoreChart.vue'; // Assurez-vous que le chemin est correct
 
 const route = useRoute();
 const router = useRouter();
@@ -101,46 +110,52 @@ const gaugeFillColor = computed(() => {
   return classification ? classification.color : '#D3D3D3'; // Couleur par défaut si aucune correspondance
 });
 
-const fetchClientData = async () => {
+const fetchClientDataAndScore = async () => {
   try {
-    const response = await axios.get(`http://localhost:5000/api/client/${clientId}`);
-    if (response.data && response.data.length > 0) {
-      client.value = response.data[0];
-    } else {
-      client.value = null;
-      alert("Client introuvable. Veuillez vérifier l'ID.");
-      router.push("/");
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération des données client :", error);
-  }
-};
+    // Mise à jour pour utiliser la route `/predict` qui retourne toutes les données nécessaires
+    const response = await axios.get(`http://localhost:5007/predict/${clientId}`);
+    const data = response.data;
 
-const fetchClientScore = async () => {
-  try {
-    const response = await axios.get(`http://localhost:5000/api/predict/${clientId}`);
-    score.value = response.data.score;
+    // Log des données retournées par l'API
+    console.log("Données retournées par l'API :", data);
 
+    // Mise à jour des informations du client
+    client.value = {
+      sk_id_curr: data.sk_id_curr,
+      gender: data.client_info.gender,
+      credit_amount: data.client_info.credit_amount,
+      goods_price: data.client_info.goods_price,
+      employment_years: data.client_info.employment_years,
+      family_members: data.client_info.family_members,
+      children_count: data.client_info.children_count,
+      region_rating: data.client_info.region_rating,
+      prediction: data.proba // Ajout de la prédiction
+    };
+
+    // Mise à jour du score et des données pour le graphique
+    score.value = data.proba;
     chartData.value = {
       labels: ['Score obtenu', 'Restant'],
       datasets: [
         {
-          data: [score.value, 100 - score.value],
+          data: [data.proba * 100, 100 - data.proba * 100],
           backgroundColor: [gaugeFillColor.value, '#E8E8E8'], // Utilisation de gaugeFillColor
           borderWidth: 0
         }
       ]
     };
   } catch (error) {
-    console.error("Erreur lors de la récupération du score :", error);
+    console.error("Erreur lors de la récupération des données :", error);
+    client.value = null;
     score.value = null;
     chartData.value = null;
+    alert("Impossible de récupérer les données pour cet ID client.");
+    router.push("/");
   }
 };
 
 onMounted(async () => {
-  await fetchClientData();
-  await fetchClientScore();
+  await fetchClientDataAndScore();
 });
 </script>
 
@@ -154,18 +169,18 @@ onMounted(async () => {
 
 .dashboard-container {
   display: flex;
-  justify-content: center; /* Centre horizontalement */
-  align-items: center; /* Centre verticalement */
+  justify-content: center;
+  align-items: center;
   min-height: 100vh;
-  background-color: var(--primary-color); /* Fond rouge */
+  background-color: var(--primary-color);
   padding: 20px;
   box-sizing: border-box;
 }
 
 .dashboard {
   width: 100%;
-  max-width: 1200px; /* Limite la largeur maximale */
-  background-color: var(--secondary-color); /* Fond blanc pour contraste */
+  max-width: 1200px; /* Largeur maximale pour les écrans larges */
+  background-color: var(--secondary-color);
   color: var(--text-color);
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -173,8 +188,8 @@ onMounted(async () => {
 }
 
 .header {
-  background-color: var(--secondary-color); /* Fond blanc pour contraste */
-  color: var(--primary-color); /* Texte rouge */
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
   padding: 20px;
   text-align: center;
 }
@@ -191,7 +206,7 @@ onMounted(async () => {
 }
 
 .client-info-section {
-  margin-bottom: 30px;
+  margin-bottom: 50px; /* Ajoute un espace sous les informations du client */
 }
 
 .client-info-cards {
@@ -203,7 +218,7 @@ onMounted(async () => {
 }
 
 .info-card {
-  background-color: var(--secondary-color); /* Fond blanc pour contraste */
+  background-color: var(--secondary-color);
   border: 1px solid var(--primary-color);
   border-radius: 8px;
   padding: 15px;
@@ -228,13 +243,15 @@ onMounted(async () => {
 }
 
 .score-section {
-  margin-top: 20px;
+  margin-top: 40px; /* Descend les visuels et leurs titres */
 }
 
 .visual-container {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center; /* Centre les visuels horizontalement */
+  align-items: center; /* Aligne les visuels verticalement */
+  gap: 40px; /* Ajoute un espace entre les visuels */
+  margin-top: 20px; /* Ajoute un espace au-dessus des visuels */
 }
 
 .chart-container {
@@ -244,37 +261,52 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  width: 300px;
-  height: 300px;
+  max-width: 400px; /* Limite la largeur des visuels */
 }
 
 .classification-container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end; /* Aligne le visuel des barres vers la droite */
+  justify-content: flex-start; /* Descend les barres pour les aligner avec la jauge */
+  margin-top: 50px; /* Ajoute un espace pour descendre les barres */
+  text-align: right; /* Aligne le texte à droite */
+  max-width: 400px; /* Limite la largeur des visuels */
+}
+
+.chart-container canvas {
+  width: 450px !important; /* Augmente la largeur de la jauge */
+  height: 450px !important; /* Augmente la hauteur de la jauge */
+}
+
+.visual-title {
+  margin-bottom: 20px; /* Ajoute un espace entre le titre et le visuel */
+  font-size: 1.5rem;
+  font-weight: bold;
   text-align: center;
 }
 
 .classification-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
-  white-space: nowrap;
+  margin-bottom: 10px; /* Restauration de l'espacement précédent */
+  width: 100%; /* Les barres prennent toute la largeur */
+  white-space: nowrap; /* Forcer l'affichage sur une seule ligne */
 }
 
 .range {
-  width: 80px;
+  width: 80px; /* Restauration de la largeur précédente des étiquettes */
   text-align: right;
   margin-right: 10px;
-  font-size: 0.9rem;
+  font-size: 0.9rem; /* Restauration de la taille de la police précédente */
   font-weight: bold;
+  white-space: nowrap; /* Empêche le retour à la ligne */
 }
 
 .bar {
-  width: 100px;
-  height: 20px;
+  flex: 1;
+  height: 20px; /* Restauration de la hauteur précédente des barres */
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -285,14 +317,37 @@ onMounted(async () => {
   color: white;
   font-size: 1rem;
   font-weight: bold;
-  margin-left: 5px;
+  margin-left: 5px; /* Restauration de l'espacement précédent */
+}
+
+.classification-container {
+  max-width: 300px; /* Réduction de la largeur maximale des barres */
+  margin: 0 auto;
 }
 
 .footer {
-  background-color: var(--secondary-color); /* Fond blanc pour contraste */
-  color: var(--primary-color); /* Texte rouge */
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
   text-align: center;
   padding: 10px;
   margin-top: 40px;
+}
+
+/* Suppression de la responsivité */
+@media (max-width: 768px) {
+  .visual-container {
+    flex-direction: row; /* Les visuels restent alignés horizontalement */
+    justify-content: space-between;
+  }
+
+  .chart-container,
+  .classification-container {
+    flex: 1 1 45%; /* Les visuels conservent leur largeur */
+    max-width: 600px;
+  }
+
+  .info-card {
+    flex: 1 1 calc(30% - 15px); /* Les cartes conservent leur largeur */
+  }
 }
 </style>
